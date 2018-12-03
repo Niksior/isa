@@ -27,10 +27,10 @@ vs = VideoStream(usePiCamera=usesPiCamera, resolution=cameraResolution, framerat
 time.sleep(2.0)
 
 
-# blueLower = (0, 100, 50)
-# blueUpper = (100, 255, 255)
-blueLower = (10, 0, 255)
-blueUpper = (0, 0, 10)
+blueLower = (0, 100, 50)
+blueUpper = (100, 255, 255)
+# blueLower = (0, 0, 255)
+# blueUpper = (0, 0, 10)
 colorTolerance = 10
 paused = False
 roiSize = (6, 6) # roi size on the scaled down image (converted to HSV)
@@ -51,10 +51,11 @@ while True:
         resizedColor_blurred = cv2.GaussianBlur(resizedColor, (5, 5), 0)
         resizedHSV = cv2.cvtColor(resizedColor_blurred, cv2.COLOR_BGR2HSV)
         roi = resizedHSV[newHeight//2 - roiSize[0]//2 : newHeight //2 + roiSize[0]//2, newWidth//2 - roiSize[1]//2 : newWidth//2 + roiSize[1]//2, :]
+        # blueLowerWithTolerance = blueLower[:2] + (blueLower[2] - colorTolerance,)
+        # blueUpperWithTolerance = blueUpper[:2] + (blueUpper[2] + colorTolerance,)
         blueLowerWithTolerance = (blueLower[0] - colorTolerance,) + blueLower[1:]
         blueUpperWithTolerance = (blueUpper[0] + colorTolerance,) + blueUpper[1:]
         mask = cv2.inRange(resizedHSV, blueLowerWithTolerance, blueUpperWithTolerance)
-        # mask = cv2.inRange(resizedHSV, blueLower, blueUpper)
         cv2.erode(mask, None, iterations=5)
         cv2.dilate(mask, None, iterations=5)
         (_,contours, hierarchy) = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -115,7 +116,6 @@ while True:
             avg_s += avg[1]
             avg_v += avg[2]
             i+=1
-
         avg_h /= i
         avg_s /= i
         avg_v /= i
@@ -135,7 +135,7 @@ while True:
         ########ser.write(bytes('d', 'utf-8'))
 
     loopEnd = time.time()
-    print("loop execution took {:3.2f}ms".format((loopEnd - loopStart)*1000))
+    # print("loop execution took {:3.2f}ms".format((loopEnd - loopStart)*1000))
 
 # cleanup
 cv2.destroyAllWindows()
