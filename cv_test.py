@@ -76,6 +76,9 @@ while True:
         gray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
         # circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.0, 100)
         circles = cv2.HoughCircles(gray,cv2.HOUGH_GRADIENT,1,100,param1=100,param2=50,minRadius=10,maxRadius=100)
+        # https://docs.opencv.org/3.1.0/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
+        # https://docs.opencv.org/3.1.0/da/d53/tutorial_py_houghcircles.html
+
         if circles is not None:
             circles = np.uint16(np.around(circles))
             for i in circles[0,:]:
