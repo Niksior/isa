@@ -29,8 +29,6 @@ time.sleep(2.0)
 
 blueLower = (0, 100, 50)
 blueUpper = (100, 255, 255)
-# blueLower = (0, 0, 255)
-# blueUpper = (0, 0, 10)
 colorTolerance = 10
 paused = False
 roiSize = (6, 6) # roi size on the scaled down image (converted to HSV)
@@ -51,8 +49,6 @@ while True:
         resizedColor_blurred = cv2.GaussianBlur(resizedColor, (5, 5), 0)
         resizedHSV = cv2.cvtColor(resizedColor_blurred, cv2.COLOR_BGR2HSV)
         roi = resizedHSV[newHeight//2 - roiSize[0]//2 : newHeight //2 + roiSize[0]//2, newWidth//2 - roiSize[1]//2 : newWidth//2 + roiSize[1]//2, :]
-        # blueLowerWithTolerance = blueLower[:2] + (blueLower[2] - colorTolerance,)
-        # blueUpperWithTolerance = blueUpper[:2] + (blueUpper[2] + colorTolerance,)
         blueLowerWithTolerance = (blueLower[0] - colorTolerance,) + blueLower[1:]
         blueUpperWithTolerance = (blueUpper[0] + colorTolerance,) + blueUpper[1:]
         mask = cv2.inRange(resizedHSV, blueLowerWithTolerance, blueUpperWithTolerance)
@@ -73,6 +69,22 @@ while True:
         else:
             pass
         upscaledColor = cv2.resize(resizedColor, (width, height), interpolation=cv2.INTER_NEAREST)
+
+
+        output = upscaledColor.copy()
+        output = cv2.medianBlur(output, 5)
+        gray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
+        # circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.0, 100)
+        circles = cv2.HoughCircles(gray,cv2.HOUGH_GRADIENT,1,100,param1=100,param2=50,minRadius=10,maxRadius=100)
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            for i in circles[0,:]:
+                # draw the outer circle
+                cv2.circle(gray,(i[0],i[1]),i[2],(0,255,0),2)
+                # draw the center of the circle
+                cv2.circle(gray,(i[0],i[1]),2,(0,0,255),3)
+
+
         # draw ROI on upscaled image
         xROI, yROI = width//2 - roiSize[1]//2 * scaleFactor, height//2 - roiSize[0]//2 * scaleFactor
         cv2.rectangle(upscaledColor, (xROI, yROI), (xROI + roiSize[0]*scaleFactor, yROI + roiSize[1]*scaleFactor), (0, 0, 0), thickness=3)
@@ -98,7 +110,8 @@ while True:
             ########ser.read_all()
         cv2.imshow("video", upscaledColor)
         cv2.imshow("roi", roi)
-        cv2.imshow("mask", mask)
+        # cv2.imshow("mask", mask)
+        cv2.imshow("gray", gray)
         modTolerances = False
 
     # handle keys
