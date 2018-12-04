@@ -12,6 +12,25 @@ import cv2
 # import numpy as np
 # import typing
 
+def skalujKolor():
+    time.sleep(5.0)
+    avg_h = 0
+    avg_s = 0
+    avg_v = 0
+    i = 0
+    for _, row in enumerate(roi):
+        avg = np.average(row, 0)
+        avg_h += avg[0]
+        avg_s += avg[1]
+        avg_v += avg[2]
+        i+=1
+
+    avg_h /= i
+    avg_s /= i
+    avg_v /= i
+    print("HUE:{}, SAT:{}, VAL:{}".format(avg_h, avg_s, avg_v))
+    blueLower = (max(0,avg_h), max(0, avg_s - 50), max(0,avg_v - 50))
+    blueUpper = (min (255, avg_h), min(255, avg_s + 50), min(255, avg_v + 50))
 
 def translate(value, oldMin, oldMax, newMin=-100, newMax=100):
     # Figure out how 'wide' each range is
@@ -49,6 +68,7 @@ blueUpper = (min (255, 174), min(255, 255 + 50), min(255, 85 + 50))
 colorTolerance = 10
 paused = False
 roiSize = (6, 6) # roi size on the scaled down image (converted to HSV)
+detected = False
 
 
 # initialize serial communication
@@ -126,7 +146,58 @@ while True:
         # if circles is not None:
         #     circles = np.unit16(np.around(circles))
         #     for i in circles[0,:]:
-        #         cv2.circle(cimg, (i[0],i[1]),i[2],(0,255,0),2)
+        #         cv2.circle(upscaledColor, (i[0],i[1]),i[2],(0,255,0),2)
+
+        # hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        # lower_red = np.array([160,140,50]) 
+        # upper_red = np.array([180,255,255])
+        # imgThreshHigh = cv2.inRange(hsv, lower_red, upper_red)
+        # thresh = imgThreshHigh.copy()
+        # countours,_ = cv2.findContours(thresh, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        # countours = countours[1:]
+        # for cnt in countours:
+        #     area = cv2.contourArea(cnt)
+        #     if area > max_area:
+        #         max_area = area
+        #         best_cnt = cnt
+        # M = cv2.moments(best_cnt)
+        # cx,cy = int(M['m10']/M['m00']), int(M['m01']/M['m00'])
+        # coord = cx, cy
+        # points.append(coord) 
+        # cv2.imshow('frame',frame)
+        # cv2.imshow('Object',thresh)
+
+        # frame = cv2.GaussianBlur(frame, )
+        hsv_conv_img = cv2.cvtColor(upscaledColor, cv2.COLOR_BGR2HSV)
+        bright_red_lower_bounds = (0, 100, 100)
+        bright_red_upper_bounds = (10, 255, 255)
+        bright_red_mask = cv2.inRange(hsv_conv_img, bright_red_lower_bounds, bright_red_upper_bounds)
+
+        dark_red_lower_bounds = (160, 100, 100)
+        dark_red_upper_bounds = (179, 255, 255)
+        dark_red_mask = cv2.inRange(hsv_conv_img, dark_red_lower_bounds, dark_red_upper_bounds)
+
+        # after masking the red shades out, I add the two images 
+        weighted_mask = cv2.addWeighted(bright_red_mask, 1.0, dark_red_mask, 1.0, 0.0)
+
+        # then the result is blurred
+        blurred_mask = cv2.GaussianBlur(weighted_mask,(9,9),3,3)
+
+        # some morphological operations (closing) to remove small blobs 
+        erode_element = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        dilate_element = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 8))
+        eroded_mask = cv2.erode(blurred_mask,erode_element)
+        dilated_mask = cv2.dilate(eroded_mask,dilate_element)
+
+        # on the color-masked, blurred and morphed image I apply the cv2.HoughCircles-method to detect circle-shaped objects 
+        detected_circles = cv2.HoughCircles(dilated_mask, cv2.HOUGH_GRADIENT, 1, 150, param1=100, param2=20, minRadius=20, maxRadius=200)
+        if detected_circles is not None:
+            if not detected:
+                skalujKolor()
+                detected = True
+            for circle in detected_circles[0, :]:
+                cv2.circle(upscaledColor, (circle[0], circle[1]), circle[2], (0,255,0),thickness=3)
+
 ##############################
         for boundingBox in boundingBoxes:
             x,y,w,h = boundingBox
@@ -206,5 +277,6 @@ while True:
     # print("loop execution took {:3.2f}ms".format((loopEnd - loopStart)*1000))
     
 # cleanup
+
 cv2.destroyAllWindows()
 vs.stop()
