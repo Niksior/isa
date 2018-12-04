@@ -2,13 +2,15 @@
 # before rnning the code install imutils for python3 (pip3 install imutils)
 
 import time
-from collections import deque
 from imutils.video import VideoStream
-import imutils
 import serial
+import imutils
+# from picamera.array import PiRGBArray
+# from picamera import PiCamera
 import numpy as np
 import cv2
-import argparse
+# import numpy as np
+# import typing
 
 
 def translate(value, oldMin, oldMax, newMin=-100, newMax=100):
@@ -20,18 +22,30 @@ def translate(value, oldMin, oldMax, newMin=-100, newMax=100):
 
     return int(NewValue)
 
-# usesPiCamera = False
 usesPiCamera = True
 
+# camera = PiCamera()
+# camera.framerate = 60
 cameraResolution = (640, 480)
+# camera.resolution = cameraResolution
+
+# # camera.awb_mode = 'tungsten'
+# camera.vflip = camera.hflip = True
+# camera.video_stabilization = True
+# rawCapture = PiRGBArray(camera, size=cameraResolution)
 
 # initialize the video stream and allow the cammera sensor to warmup
 vs = VideoStream(usePiCamera=usesPiCamera, resolution=cameraResolution, framerate=60).start()
 time.sleep(2.0)
 
 
-blueLower = (0, 100, 50)
-blueUpper = (100, 255, 255)
+# cap = cv2.VideoCapture(0)
+# blueLower = (0, 100, 50)
+# blueUpper = (100, 255, 255)
+
+blueLower = (max(0,174), max(0, 217 - 50), max(0,185 - 50))
+blueUpper = (min (255, 174), min(255, 255 + 50), min(255, 85 + 50))
+
 colorTolerance = 10
 paused = False
 roiSize = (6, 6) # roi size on the scaled down image (converted to HSV)
@@ -42,94 +56,84 @@ ser = serial.Serial(port='/dev/ttyACM0', baudrate=9600, timeout=0.05)
 
 while True:
 # for cameraFrame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-    # loopStart = time.time()
+    loopStart = time.time()
     if not paused:
+        # ret, frame = cap.read()
+        # frame = cv2.flip(frame, flipCode=-1)
         frame = vs.read()
-        frame1 = cv2.flip(frame, -1)
-        height, width = frame1.shape[0:2]
+        
+        height, width = frame.shape[0:2]
         scaleFactor = 4
         newWidth, newHeight = width//scaleFactor, height//scaleFactor
-        resizedColor = cv2.resize(frame1, (newWidth, newHeight), interpolation=cv2.INTER_CUBIC)
+
+
+        resizedColor = cv2.resize(frame, (newWidth, newHeight), interpolation=cv2.INTER_CUBIC)
         resizedColor_blurred = cv2.GaussianBlur(resizedColor, (5, 5), 0)
+
+        # resizedHSV = cv2.cvtColor(resizedColor, cv2.COLOR_BGR2HSV)
         resizedHSV = cv2.cvtColor(resizedColor_blurred, cv2.COLOR_BGR2HSV)
+
         roi = resizedHSV[newHeight//2 - roiSize[0]//2 : newHeight //2 + roiSize[0]//2, newWidth//2 - roiSize[1]//2 : newWidth//2 + roiSize[1]//2, :]
+        # roi = resizedHSV[10*newHeight//20 : 12*newHeight//20, 10*newWidth//20 : 12*newWidth // 20, :]
+        
         blueLowerWithTolerance = (blueLower[0] - colorTolerance,) + blueLower[1:]
         blueUpperWithTolerance = (blueUpper[0] + colorTolerance,) + blueUpper[1:]
-        mask = cv2.inRange(roi, blueLowerWithTolerance, blueUpperWithTolerance)
-        mask = cv2.erode(mask, None, iterations=5)
-        mask = cv2.dilate(mask, None, iterations=5)
+
+        mask = cv2.inRange(resizedHSV, blueLowerWithTolerance, blueUpperWithTolerance)
+        cv2.erode(mask, None, iterations=5)
+        cv2.dilate(mask, None, iterations=5)
+
         (_,contours, hierarchy) = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
         boundingBoxes = []
         biggestObject_BoundingBox = None
         biggestObjectMiddle = None
         if contours:
             largestContour = max(contours, key=cv2.contourArea)
             biggestObject_BoundingBox = cv2.boundingRect(largestContour)
+            
             for i, contour in enumerate(contours):
                 area = cv2.contourArea(contour)
                 if area > ((newWidth * newHeight)/256):
                     x,y,w,h = cv2.boundingRect(contour)
                     boundingBoxes.append((x,y,w,h))
+                    # print("Object {}: ({},{}); {}x{}; area: {}".format(i, x,y,w,h, area))
         else:
             pass
+
         upscaledColor = cv2.resize(resizedColor, (width, height), interpolation=cv2.INTER_NEAREST)
-    
-        cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cnts = cnts[0] if imutils.is_cv2() else cnts[1]
-        center = None
-        tmp = upscaledColor.copy()
-
-        if len(cnts) > 0:
-            c = max(cnts, key = cv2.contourArea)
-            ((x, y), radius) = cv2.minEnclosingCircle(c)
-            M = cv2.moments(c)
-            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-
-            if radius > 10:
-                cv2.circle(tmp, (int(x), int(y)), int(radius), (0,255,255), 2)
-                cv2.circle(tmp, center, 5, (0, 0, 255), -1)
-        
-        ap = argparse.ArgumentParser()
-        ap.add_argument("-v", "--video")
-        ap.add_argument("-b", "--buffer", type=int, default=64)
-        args = vars(ap.parse_args())
-        pts = deque(maxlen=args["buffer"])
-        pts.appendleft(center)
-
-        for i in range(1, len(pts)):
-            if pts[i - 1] in None or pts[i] is None:
-                continue
-            thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
-            cv2.line(tmp, pts[i - 1], pts[i], (0, 0, 255), thickness)
-
-        
-        cv2.imshow("tmp", tmp)
-
-        # output = upscaledColor.copy()
-        # output = cv2.medianBlur(output, 5)
-        # gray = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
-        # # circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.0, 100)
-        # circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 100, param1=200, param2=50, minRadius=10, maxRadius=100)
-        # # https://docs.opencv.org/3.1.0/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
-        # # https://docs.opencv.org/3.1.0/da/d53/tutorial_py_houghcircles.html
-
-        # if circles is not None:
-        #     circles = np.uint16(np.around(circles))
-        #     for i in circles[0,:]:
-        #         # draw the outer circle
-        #         cv2.circle(gray,(i[0],i[1]),i[2],(0,255,0),2)
-        #         # draw the center of the circle
-        #         cv2.circle(gray,(i[0],i[1]),2,(0,0,255),3)
-
-
         # draw ROI on upscaled image
         xROI, yROI = width//2 - roiSize[1]//2 * scaleFactor, height//2 - roiSize[0]//2 * scaleFactor
         cv2.rectangle(upscaledColor, (xROI, yROI), (xROI + roiSize[0]*scaleFactor, yROI + roiSize[1]*scaleFactor), (0, 0, 0), thickness=3)
+############################
+        # cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # cnts = cnts[0] if imutils.is_cv2() else cnts[1]
+        # center = None
+
+        # if len(cnts) > 0:
+        #     c = max(cnts, key = cv2.contourArea)
+        #     ((x, y), radius) = cv2.minEnclosingCircle(c)
+        #     M = cv2.moments(c)
+        #     center = (int(M["m10"] / M["m00"]) * scaleFactor, int(M["m01"] / M["m00"]) * scaleFactor)
+
+        #     if radius > 10:
+        #         cv2.circle(upscaledColor, (int(x) * scaleFactor, int(y) * scaleFactor) , int(radius) * scaleFactor, (0,255,255), 2)
+        #         cv2.circle(upscaledColor, center, 5, (0, 0, 255), -1)
+
+
+        # cimg = cv2.cvtColor(upscaledColor, cv2.COLOR_GRAY2BGR)
+        # circles = cv2.HoughCircles(upscaledColor, cv2.HOUGH_GRADIENT, 1, 100)
+        # if circles is not None:
+        #     circles = np.unit16(np.around(circles))
+        #     for i in circles[0,:]:
+        #         cv2.circle(cimg, (i[0],i[1]),i[2],(0,255,0),2)
+##############################
         for boundingBox in boundingBoxes:
             x,y,w,h = boundingBox
             cv2.rectangle(resizedColor, (x, y), (x+w, y+h), (255, 255, 0), thickness=1)
             cv2.rectangle(upscaledColor, (x*scaleFactor, y*scaleFactor),
                         ((x+w)*scaleFactor, (y+h)*scaleFactor), (255, 255, 0), thickness=2)
+        
         if biggestObject_BoundingBox:
             x, y, w, h = biggestObject_BoundingBox
             biggestObjectMiddle = ((x+ w//2)*scaleFactor, (y + h//2)*scaleFactor)
@@ -139,19 +143,31 @@ while True:
             cv2.circle(upscaledColor, biggestObjectMiddle, 2, (255, 0, 0), thickness=2)
             screenMiddle = width//2, height//2
             distanceVector = tuple(map(lambda x, y: x - y, biggestObjectMiddle, screenMiddle))
+            # print("Vector: {}".format(distanceVector))
             scaled = (translate(distanceVector[0], -width//2, width//2), translate(distanceVector[1], -height//2, height//2) )
+            # print("Vector scaled: {}".format(scaled))
             cv2.line(upscaledColor, screenMiddle, biggestObjectMiddle, (0, 0, 255))
             packet = '<packet, {}, {}>'.format(scaled[0], scaled[1])
             packetBytes = bytes(packet, 'utf-8')
+            # yaw = 'y {}\n'.format(scaled[0])
+            # b_yaw = bytes(yaw, 'utf-8') # or 'ascii'
+            # pitch = 'p {}\n'.format(scaled[1])
+            # b_pitch = bytes(pitch, 'utf-8') # or 'ascii'
             ser.write(packetBytes)
             ser.read_all()
+            # ser.write(b_yaw)
+            # print(ser.read_all())
+            # ser.write(b_pitch)
+            # print(ser.read_all())
+            
+
         cv2.imshow("video", upscaledColor)
         cv2.imshow("roi", roi)
-        # cv2.imshow("mask", mask)
-        # cv2.imshow("gray", gray)
+        cv2.imshow("mask", mask)
+
         modTolerances = False
 
-    # handle keys
+    # handle keys 
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
         break
@@ -166,6 +182,7 @@ while True:
             avg_s += avg[1]
             avg_v += avg[2]
             i+=1
+
         avg_h /= i
         avg_s /= i
         avg_v /= i
@@ -183,10 +200,11 @@ while True:
     elif key == ord('d'):
         # pause/unpause arduino camera movement
         ser.write(bytes('d', 'utf-8'))
-
-    # loopEnd = time.time()
+    
+    # rawCapture.truncate(0)
+    loopEnd= time.time()
     # print("loop execution took {:3.2f}ms".format((loopEnd - loopStart)*1000))
-
+    
 # cleanup
 cv2.destroyAllWindows()
 vs.stop()
