@@ -41,7 +41,7 @@ def translate(value, oldMin, oldMax, newMin=-100, newMax=100):
 
     return int(NewValue)
 
-usesPiCamera = False
+usesPiCamera = True
 
 # camera = PiCamera()
 # camera.framerate = 60
@@ -72,11 +72,11 @@ detected = False
 
 
 # initialize serial communication
-#ser = serial.Serial(port='/dev/ttyACM0', baudrate=9600, timeout=0.05)
+ser = serial.Serial(port='/dev/ttyACM0', baudrate=9600, timeout=0.05)
 
 while True:
 # for cameraFrame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-    loopStart = time.time()
+    # loopStart = time.time()
     if not paused:
         # ret, frame = cap.read()
         # frame = cv2.flip(frame, flipCode=-1)
@@ -224,8 +224,8 @@ while True:
             # b_yaw = bytes(yaw, 'utf-8') # or 'ascii'
             # pitch = 'p {}\n'.format(scaled[1])
             # b_pitch = bytes(pitch, 'utf-8') # or 'ascii'
- #           ser.write(packetBytes)
-  #          ser.read_all()
+            ser.write(packetBytes)
+            ser.read_all()
             # ser.write(b_yaw)
             # print(ser.read_all())
             # ser.write(b_pitch)
@@ -266,11 +266,11 @@ while True:
     elif key == ord('s'):
         colorTolerance = max(colorTolerance - 1, 0)
         print("New color range: {}".format(colorTolerance))
-    elif key == ord('p'):
-        paused = not paused
-    #elif key == ord('d'):
+    # elif key == ord('p'):
+        # paused = not paused
+    # elif key == ord('d'):
         # pause/unpause arduino camera movement
-   #     ser.write(bytes('d', 'utf-8'))
+    # ser.write(bytes('d', 'utf-8'))
     
     # rawCapture.truncate(0)
     loopEnd= time.time()
