@@ -6,9 +6,9 @@
 
 struct dataPacket 
 {
-    char message[64] = {0};
-    int packet_int = 0;
-    float packet_float = 0.0f;
+//    char message[64] = {0};
+    int packet_x = 0;
+    int packet_radius = 0;
 
 };
 

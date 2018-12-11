@@ -143,9 +143,7 @@ double lastDeviation = 0;
 double sumDeviation = 0;
 
 void pid(dataPacket packet) {
-  Serial.print("Integer ");
-  Serial.println(packet.packet_int);
-  double deviation = (double)packet.packet_int;
+  double deviation = (double)packet.packet_x;
   double proportionalTor = k * deviation;
   double differentialTor = d * (deviation - lastDeviation);
 
@@ -235,24 +233,24 @@ dataPacket parseData() {      // split the data into its parts
 
     char * strtokIndx; // this is used by strtok() as an index
 
-    strtokIndx = strtok(tempChars,",");      // get the first part - the string
-    strcpy(tmpPacket.message, strtokIndx); // copy it to messageFromPC
+//    strtokIndx = strtok(tempChars,",");      // get the first part - the string
+//    strcpy(tmpPacket.message, strtokIndx); // copy it to messageFromPC
  
-    strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
-    tmpPacket.packet_int = atoi(strtokIndx);     // convert this part to an integer
+    strtokIndx = strtok(tempChars, ","); // this continues where the previous call left off
+    tmpPacket.packet_x = atoi(strtokIndx);     // convert this part to an integer
 
     strtokIndx = strtok(NULL, ",");
-    tmpPacket.packet_float = atof(strtokIndx);     // convert this part to a float
+    tmpPacket.packet_radius = atoi(strtokIndx);     // convert this part to a float
 
     return tmpPacket;
 }
 
 
 void showParsedData(dataPacket packet) {
-    Serial.print("Message ");
-    Serial.println(packet.message);
-    Serial.print("Integer ");
-    Serial.println(packet.packet_int);
-    Serial.print("Float ");
-    Serial.println(packet.packet_float);
+//    Serial.print("Message ");/
+//    Serial.println(packet.message);/
+    Serial.print("x= ");
+    Serial.println(packet.packet_x);
+    Serial.print("radius= ");
+    Serial.println(packet.packet_radius);
 }
