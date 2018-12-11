@@ -12,13 +12,9 @@ This code is based on the examples at http://forum.arduino.cc/index.php?topic=39
 const byte numChars = 32;
 char receivedChars[numChars];
 char tempChars[numChars];        // temporary array for use when parsing
-
 dataPacket packet;
-
-
 boolean newData = false;
 
-//=========nasze
 void SetPowerLevel(PowerSideEnum side, int level)
 {
   level = constrain(level, -255, 255);
@@ -61,15 +57,11 @@ int measureSoundSpeed(int trigger_pin, int echo_pin)
 {
   digitalWrite(trigger_pin, false);
   delayMicroseconds(2);
-
   digitalWrite(trigger_pin, true);
   delayMicroseconds(10);
   digitalWrite(trigger_pin, false);
-
   // zmierz czas przelotu fali dźwiękowej
   int duration = pulseIn(echo_pin, true, 50 * 1000);
-  
-
   // przelicz czas na odległość (1/2 Vsound(t=20st.C))
   int distance = (int)((float)duration * 0.03438f * 0.5f);
   return distance;
@@ -84,7 +76,6 @@ int distanceFront() {
   int dist = measureSoundSpeed(
       ultrasound_trigger_pin[(int)sensor],
       ultrasound_echo_pin[(int)sensor]);
-
   // średnia krocząca
   sum -= d[id];
   sum += d[id] = dist;
@@ -99,7 +90,6 @@ void setup() {
   {
     pinMode(ultrasound_trigger_pin[i], OUTPUT);
     pinMode(ultrasound_echo_pin[i], INPUT);
-    
     digitalWrite(ultrasound_trigger_pin[i], 0);
   }
   
@@ -127,10 +117,8 @@ void pid(dataPacket packet) {
   double deviation = (double)packet.packet_x - 80;
   double proportionalTor = k * deviation;
   double differentialTor = d * (deviation - lastDeviation);
-
   sumDeviation += deviation;
   double integralTor = i * sumDeviation;
-
   torSum = proportionalTor + differentialTor + integralTor;
 
   int power = (int)torSum;

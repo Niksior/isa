@@ -6,10 +6,8 @@
 
 struct dataPacket 
 {
-//    char message[64] = {0};
     int packet_x = 0;
     int packet_radius = 0;
-
 };
 
 
