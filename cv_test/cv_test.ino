@@ -5,7 +5,7 @@ This code is based on the examples at http://forum.arduino.cc/index.php?topic=39
 
 // Example 5 - parsing text and numbers with start and end markers in the stream
 #include "ISAMobile.h"
-//#include <DueTimer.h>/
+//#include <DueTimer.h>
 #include <math.h>
 #include "helper.h"
 
@@ -93,18 +93,8 @@ int distanceFront() {
   return dist;
 }
 
-void stopuj(){
-  while(distanceFront() < 7 && distanceFront() != 0){
-    SetPowerLevel(PowerSideEnum::Left, 0);
-    SetPowerLevel(PowerSideEnum::Right, 0);
-  }
-}
-
-
-//============
 
 void setup() {
-  // Czujniki ultradźwiekowe
   for (int i = (int)UltraSoundSensor::__first; i <= (int)UltraSoundSensor::__last; i++)
   {
     pinMode(ultrasound_trigger_pin[i], OUTPUT);
@@ -113,7 +103,6 @@ void setup() {
     digitalWrite(ultrasound_trigger_pin[i], 0);
   }
   
-  // Silniki
   pinMode(A_PHASE, OUTPUT);
   pinMode(A_ENABLE, OUTPUT);
   pinMode(B_PHASE, OUTPUT);
@@ -123,18 +112,10 @@ void setup() {
   digitalWrite(MODE, true);
   SetPowerLevel(PowerSideEnum::Left, 0);
   SetPowerLevel(PowerSideEnum::Right, 0);
-
-//  Timer4.attachInterrupt(stopuj);
-//  Timer4.setFrequency(4);
-//  Timer4.start();
   
   Serial.begin(9600);
-  //Serial.println("This demo expects 3 pieces of data - text, an integer and a floating point value");
-  //Serial.println("Enter data in this style <HelloWorld, 12, 24.7>  ");
-  //Serial.println();
 }
 
-///double N = -400;
 double k = 0.4;
 double d = 0.4;
 double i = 0.05;
@@ -143,7 +124,7 @@ double lastDeviation = 0;
 double sumDeviation = 0;
 
 void pid(dataPacket packet) {
-  double deviation = (double)packet.packet_x;
+  double deviation = (double)packet.packet_x - 80;
   double proportionalTor = k * deviation;
   double differentialTor = d * (deviation - lastDeviation);
 
@@ -166,24 +147,21 @@ void pid(dataPacket packet) {
     integralTor = -25;
     sumDeviation = integralTor / i;
   }
-  SetPowerLevel(PowerSideEnum::Right, power + 100);
-  SetPowerLevel(PowerSideEnum::Left, -power + 100);
+  if(packet.packet_radius >= 23 || packet.packet_radius == 0){
+    SetPowerLevel(PowerSideEnum::Left, 0);
+    SetPowerLevel(PowerSideEnum::Right, 0);
+  } else {
+    SetPowerLevel(PowerSideEnum::Right, power + 60);
+    SetPowerLevel(PowerSideEnum::Left, -power + 60);  
+  }
 }
 
-/*void pid(dataPacket packet) {
-  int value = packet.packet_int;
-  SetPowerLevel(PowerSideEnum::Right, 100);
-  SetPowerLevel(PowerSideEnum::Left, 100);
-}*/
-
-//============
 
 void loop() {
     recvWithStartEndMarkers();
     if (newData == true) {
         strcpy(tempChars, receivedChars);
-            // this temporary copy is necessary to protect the original data
-            //   because strtok() used in parseData() replaces the commas with \0
+            
         packet = parseData();
         showParsedData(packet);
         pid(packet);
@@ -191,18 +169,14 @@ void loop() {
     }
 }
 
-//============
-
 void recvWithStartEndMarkers() {
     static boolean recvInProgress = false;
     static byte ndx = 0;
     char startMarker = '<';
     char endMarker = '>';
     char rc;
-
     while (Serial.available() > 0 && newData == false) {
         rc = Serial.read();
-
         if (recvInProgress == true) {
             if (rc != endMarker) {
                 receivedChars[ndx] = rc;
@@ -212,43 +186,30 @@ void recvWithStartEndMarkers() {
                 }
             }
             else {
-                receivedChars[ndx] = '\0'; // terminate the string
+                receivedChars[ndx] = '\0';
                 recvInProgress = false;
                 ndx = 0;
                 newData = true;
             }
         }
-
         else if (rc == startMarker) {
             recvInProgress = true;
         }
     }
 }
 
-//============
-
-dataPacket parseData() {      // split the data into its parts
-
+dataPacket parseData() {      
     dataPacket tmpPacket;
-
-    char * strtokIndx; // this is used by strtok() as an index
-
-//    strtokIndx = strtok(tempChars,",");      // get the first part - the string
-//    strcpy(tmpPacket.message, strtokIndx); // copy it to messageFromPC
- 
-    strtokIndx = strtok(tempChars, ","); // this continues where the previous call left off
-    tmpPacket.packet_x = atoi(strtokIndx);     // convert this part to an integer
-
+    char * strtokIndx; 
+    strtokIndx = strtok(tempChars, ",");
+    tmpPacket.packet_x = atoi(strtokIndx);
     strtokIndx = strtok(NULL, ",");
-    tmpPacket.packet_radius = atoi(strtokIndx);     // convert this part to a float
-
+    tmpPacket.packet_radius = atoi(strtokIndx);
     return tmpPacket;
 }
 
 
 void showParsedData(dataPacket packet) {
-//    Serial.print("Message ");/
-//    Serial.println(packet.message);/
     Serial.print("x= ");
     Serial.println(packet.packet_x);
     Serial.print("radius= ");
