@@ -9,6 +9,7 @@ import imutils
 import numpy as np
 import cv2
 import argparse
+from shapedetector import ShapeDetector
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video",
@@ -16,12 +17,14 @@ ap.add_argument("-v", "--video",
 ap.add_argument("-b", "--buffer", type=int, default=64,
 	help="max buffer size")
 args = vars(ap.parse_args())
-redLower = (160,140,50)
+# redLower = (160,140,50)
+# redUpper = (180,255,255)
+redLower = (130,140,50)
 redUpper = (180,255,255)
 pts = deque(maxlen=args["buffer"])
 usesPiCamera = True
 cameraResolution = (640, 480)
-vs = VideoStream(usePiCamera=usesPiCamera, resolution=cameraResolution, framerate=60).start()
+vs = VideoStream(usePiCamera=usesPiCamera, resolution=cameraResolution, framerate=32).start()
 time.sleep(2.0)
 ser = serial.Serial(port='/dev/ttyACM0', baudrate=9600, timeout=0.05)
 
@@ -31,7 +34,6 @@ while True:
     scaleFactor = 4
     newWidth, newHeight = width//scaleFactor, height//scaleFactor
     resizedColor = cv2.resize(frame, (newWidth, newHeight), interpolation=cv2.INTER_CUBIC)
-
     blurred = cv2.GaussianBlur(resizedColor, (11, 11), 0)
     hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, redLower, redUpper)
@@ -40,29 +42,33 @@ while True:
     cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
     cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
+
+    sd = ShapeDetector()
+
     center = None
     x = 0
     radius = 0
     if len(cnts) > 0:
-        c = max(cnts, key=cv2.contourArea)
-        ((x, y), radius) = cv2.minEnclosingCircle(c)
-        M = cv2.moments(c)
-        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-        if radius > 10:
-            cv2.circle(resizedColor, (int(x), int(y)), int(radius),
-                (0, 255, 255), 2)
-    pts.appendleft(center)
-    for i in range(1, len(pts)):
-        if pts[i - 1] is None or pts[i] is None:
-            continue
-    x=int(x)
-    radius=int(radius)
-    packet = '<{}, {}>'.format(x, radius)
-    packetBytes = bytes(packet, 'utf-8')
-    ser.write(packetBytes)
-    print(packet)
-    ser.readall()
-    upscaledColor = cv2.resize(resizedColor, (width, height), interpolation=cv2.INTER_NEAREST)     
+        for c in cnts:
+            circle = sd.detect(c)
+            if(circle):
+                print('cicle')
+                ((x, y), radius) = cv2.minEnclosingCircle(c)
+                if radius > 10:
+                    cv2.circle(resizedColor, (int(x), int(y)), int(radius),
+                        (0, 255, 255), 2)
+                x=int(x)
+                radius=int(radius)
+                packet = '<{}, {}>'.format(x, radius)
+                packetBytes = bytes(packet, 'utf-8')
+                ser.write(packetBytes)
+                ser.readall()
+            else:
+                print('not cicrle')
+    upscaledColor = cv2.resize(resizedColor, (width, height), interpolation=cv2.INTER_NEAREST)
+    hsv2 = cv2.resize(hsv, (width, height), interpolation=cv2.INTER_NEAREST)  
+    cv2.imshow('mask', cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)  )
+    cv2.imshow('hsv',hsv2)
     cv2.imshow("window", upscaledColor)
     key = cv2.waitKey(1) & 0xFF
 
