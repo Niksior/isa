@@ -17,8 +17,6 @@ ap.add_argument("-v", "--video",
 ap.add_argument("-b", "--buffer", type=int, default=64,
 	help="max buffer size")
 args = vars(ap.parse_args())
-# redLower = (160,140,50)
-# redUpper = (180,255,255)
 redLower = (130,140,50)
 redUpper = (180,255,255)
 pts = deque(maxlen=args["buffer"])
