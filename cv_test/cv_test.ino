@@ -18,7 +18,7 @@ boolean newData = false;
 void SetPowerLevel(PowerSideEnum side, int level)
 {
   level = constrain(level, -255, 255);
-  
+
   if (side == PowerSideEnum::Right) {
     if (level > 0) {
       // do przodu
@@ -34,7 +34,7 @@ void SetPowerLevel(PowerSideEnum side, int level)
       analogWrite(A_ENABLE, 0);
     }
   }
-  
+
   if (side == PowerSideEnum::Left) {
     if (level > 0) {
       // do przodu
@@ -49,7 +49,7 @@ void SetPowerLevel(PowerSideEnum side, int level)
       digitalWrite(B_PHASE, 0);
       analogWrite(B_ENABLE, 0);
     }
-  } 
+  }
 }
 
 
@@ -92,7 +92,7 @@ void setup() {
     pinMode(ultrasound_echo_pin[i], INPUT);
     digitalWrite(ultrasound_trigger_pin[i], 0);
   }
-  
+
   pinMode(A_PHASE, OUTPUT);
   pinMode(A_ENABLE, OUTPUT);
   pinMode(B_PHASE, OUTPUT);
@@ -102,7 +102,7 @@ void setup() {
   digitalWrite(MODE, true);
   SetPowerLevel(PowerSideEnum::Left, 0);
   SetPowerLevel(PowerSideEnum::Right, 0);
-  
+
   Serial.begin(9600);
 }
 
@@ -135,12 +135,12 @@ void pid(dataPacket packet) {
     integralTor = -25;
     sumDeviation = integralTor / i;
   }
-  if(packet.packet_radius >= 23 || packet.packet_radius == 0){
+  if(packet.packet_radius >= 23 || packet.packet_radius == 0 || stopuj()){
     SetPowerLevel(PowerSideEnum::Left, 0);
     SetPowerLevel(PowerSideEnum::Right, 0);
   } else {
     SetPowerLevel(PowerSideEnum::Right, power + 60);
-    SetPowerLevel(PowerSideEnum::Left, -power + 60);  
+    SetPowerLevel(PowerSideEnum::Left, -power + 60);
   }
 }
 
@@ -149,7 +149,7 @@ void loop() {
     recvWithStartEndMarkers();
     if (newData == true) {
         strcpy(tempChars, receivedChars);
-            
+
         packet = parseData();
         showParsedData(packet);
         pid(packet);
@@ -186,9 +186,9 @@ void recvWithStartEndMarkers() {
     }
 }
 
-dataPacket parseData() {      
+dataPacket parseData() {
     dataPacket tmpPacket;
-    char * strtokIndx; 
+    char * strtokIndx;
     strtokIndx = strtok(tempChars, ",");
     tmpPacket.packet_x = atoi(strtokIndx);
     strtokIndx = strtok(NULL, ",");
@@ -202,4 +202,11 @@ void showParsedData(dataPacket packet) {
     Serial.println(packet.packet_x);
     Serial.print("radius= ");
     Serial.println(packet.packet_radius);
+}
+
+bool stopuj(){
+  if(distanceFront() < 7 && distanceFront() != 0){
+    return true;
+  }
+  return false;
 }
