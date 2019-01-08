@@ -84,6 +84,40 @@ int distanceFront() {
   return dist;
 }
 
+int distanceLeft() {
+  UltraSoundSensor sensor = UltraSoundSensor::Left;
+  char buffer[64];
+  int d[5] = {};
+  int sum = 0;
+  int id = 0;
+  int dist = measureSoundSpeed(
+      ultrasound_trigger_pin[(int)sensor],
+      ultrasound_echo_pin[(int)sensor]);
+  // średnia krocząca
+  sum -= d[id];
+  sum += d[id] = dist;
+  id = (id + 1) % 5;
+  dist = sum / 5;
+  return dist;
+}
+
+int distanceRight() {
+  UltraSoundSensor sensor = UltraSoundSensor::Right;
+  char buffer[64];
+  int d[5] = {};
+  int sum = 0;
+  int id = 0;
+  int dist = measureSoundSpeed(
+      ultrasound_trigger_pin[(int)sensor],
+      ultrasound_echo_pin[(int)sensor]);
+  // średnia krocząca
+  sum -= d[id];
+  sum += d[id] = dist;
+  id = (id + 1) % 5;
+  dist = sum / 5;
+  return dist;
+}
+
 
 void setup() {
   for (int i = (int)UltraSoundSensor::__first; i <= (int)UltraSoundSensor::__last; i++)
@@ -205,7 +239,12 @@ void showParsedData(dataPacket packet) {
 }
 
 bool stopuj(){
-  if(distanceFront() < 7 && distanceFront() != 0){
+  bool front = ((distanceFront() < 7) && (distanceFront() != 0));
+  bool left = ((distanceLeft() < 7) && (distanceLeft() != 0));
+  bool right = ((distanceRight() < 7) && (distanceRight() != 0));
+
+
+  if(left || front || right){
     return true;
   }
   return false;
