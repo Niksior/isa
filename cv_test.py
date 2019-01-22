@@ -51,7 +51,7 @@ while True:
         for c in cnts:
             if(sd.detect(c)):
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
-                if(int(radius) > 6 | True):
+                if(int(radius) > 6):
                     cv2.circle(resizedColor, (int(x), int(y)), int(radius),
                         (0, 255, 255), 2)
                     x=int(x)
