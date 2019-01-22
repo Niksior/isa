@@ -32,7 +32,7 @@ while True:
     scaleFactor = 4
     newWidth, newHeight = width//scaleFactor, height//scaleFactor
     resizedColor = cv2.resize(frame, (newWidth, newHeight), interpolation=cv2.INTER_CUBIC)
-    blurred = cv2.GaussianBlur(resizedColor, (11, 11), 0)
+    blurred = cv2.GaussianBlur(resizedColor, (3, 3), 0)
     hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, redLower, redUpper)
     mask = cv2.erode(mask, None, iterations=2)
@@ -46,12 +46,16 @@ while True:
     center = None
     x = 0
     radius = 0
+    tmp = 'a'
     if len(cnts) > 0:
         for c in cnts:
             circle = sd.detect(c)
-            if(circle):
-                print('cicle')
+            kolo = (4*3.14*circle) / (2*3.14*radius*2*3.14*radius)
+            if(kolo > 0.8):
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
+                x = int(x)
+                y = int(y)
+                radius = int(radius)
                 if radius > 10:
                     cv2.circle(resizedColor, (int(x), int(y)), int(radius),
                         (0, 255, 255), 2)
@@ -61,8 +65,7 @@ while True:
                 packetBytes = bytes(packet, 'utf-8')
                 ser.write(packetBytes)
                 ser.readall()
-            else:
-                print('not cicrle')
+                    
     upscaledColor = cv2.resize(resizedColor, (width, height), interpolation=cv2.INTER_NEAREST)
     hsv2 = cv2.resize(hsv, (width, height), interpolation=cv2.INTER_NEAREST)  
     cv2.imshow('mask', cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)  )
