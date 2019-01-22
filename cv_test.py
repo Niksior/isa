@@ -49,22 +49,17 @@ while True:
     radius = 0
     if len(cnts) > 0:
         for c in cnts:
-            circle = sd.detect(c)
-            kolo = (4*math.pi*circle) / math.pow((2*math.pi*radius), 2)
-            if(kolo > 0.8):
+            if(sd.detect(c)):
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
-                x = int(x)
-                y = int(y)
-                radius = int(radius)
-                if radius > 10:
+                if(int(radius) > 6 | True):
                     cv2.circle(resizedColor, (int(x), int(y)), int(radius),
                         (0, 255, 255), 2)
-                x=int(x)
-                radius=int(radius)
-                packet = '<{}, {}>'.format(x, radius)
-                packetBytes = bytes(packet, 'utf-8')
-                ser.write(packetBytes)
-                ser.readall()
+                    x=int(x)
+                    radius=int(radius)
+                    packet = '<{}, {}>'.format(x, radius)
+                    packetBytes = bytes(packet, 'utf-8')
+                    ser.write(packetBytes)
+                    ser.readall()
                     
     upscaledColor = cv2.resize(resizedColor, (width, height), interpolation=cv2.INTER_NEAREST)
     hsv2 = cv2.resize(hsv, (width, height), interpolation=cv2.INTER_NEAREST)  
