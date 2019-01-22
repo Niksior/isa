@@ -9,6 +9,7 @@ import imutils
 import numpy as np
 import cv2
 import argparse
+import math
 from shapedetector import ShapeDetector
 
 ap = argparse.ArgumentParser()
@@ -46,11 +47,10 @@ while True:
     center = None
     x = 0
     radius = 0
-    tmp = 'a'
     if len(cnts) > 0:
         for c in cnts:
             circle = sd.detect(c)
-            kolo = (4*3.14*circle) / (2*3.14*radius*2*3.14*radius)
+            kolo = (4*math.pi*circle) / math.pow((2*math.pi*radius), 2)
             if(kolo > 0.8):
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
                 x = int(x)

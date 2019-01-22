@@ -10,10 +10,3 @@ class ShapeDetector:
         peri = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(c, 0.01 * peri, True)
         return area;
-
-    def detect2(self, c):
-        circle = cv2.HoughCircles(c, cv2.HOUGH_GRADIENT, 3, 100)
-        print(circle)
-        if circle is not None:
-            return True
-        return False
